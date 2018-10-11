@@ -50,11 +50,11 @@ func Create(ctx context.Context, stateDir *string) *cobra.Command {
 			return runCreate(ctx, args[0], opts, os.Stdin, cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
 	}
+
 	flags := cmd.Flags()
 	flags.StringVar(&opts.ACSEnginePath, "acs-engine-path", "acs-engine", "Location of acs-engine binary")
 
 	// TODO(@cpuguy83): Configure this through some default config in the state dir
-	// flags.StringVarP(&opts.ResourceGroup, "resource-group", "g", "testrig", "Set the resource group to deploy to. If the group doesn't exist, it will be created")
 	flags.StringVarP(&opts.Location, "location", "l", "", "Azure location to deploy to, e.g. `centralus` (required)")
 	flags.StringVarP(&opts.SubscriptionID, "subscription", "s", "", "Azure subscription to deploy the cluster with")
 
