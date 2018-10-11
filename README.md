@@ -17,21 +17,25 @@ Create a new kubernetes cluster on Azure
 Usage:
   testrig create [flags]
 
-      --acs-engine-path string                    Set the path to use for acs-engine (default "acs-engine")
+Flags:
+      --acs-engine-path string                    Location of acs-engine binary (default "acs-engine")
   -h, --help                                      help for create
-      --kubernetes-version string                 set the kubernetes version to use (default "1.10")
-      --linux-agent-availability-profile string   set the availabiltiy profile for agent nodes (default "VirtualMachineScaleSets")
-      --linux-agent-count int                     sets the number of nodes for agent pools (default 3)
-      --linux-agent-node-sku string               sets sku to use for agent nodes (default "Standard_DS2_v2")
-      --linux-leader-count int                    sets the number of nodes for the leader pool (default 3)
-      --linux-leader-node-sku string              sets sku to use for agent nodes (default "Standard_DS2_v2")
-  -l, --location string                           Set the location to deploy to
-      --network-plugin string                     set the network plugin to use for the cluster (default "azure")
-      --network-policy string                     set the network policy to use for the cluster (default "azure")
-      --runtime string                            sets the container runtime to use
-      --ssh-key sshKey                            set public SSH key to install as authorized keys in cluster nodes
-      -s, --subscription string                   Set the subscription to use to deploy with
-      -u, --user string                           set the username to use for nodes (default "azureuser")
+      --kubernetes-version string                 Specify the Kubernetes version (default "1.10")
+      --linux-agent-availability-profile string   Availabiltiy profile for agent nodes (default "VirtualMachineScaleSets")
+      --linux-agent-count int                     Number of nodes for the Kubernetes agent/worker pools (default 3)
+      --linux-agent-node-sku string               VM SKU for agent nodes (default "Standard_DS2_v2")
+      --linux-leader-count int                    Number of nodes for the Kubernetes leader pool (default 3)
+      --linux-leader-node-sku string              VM SKU for leader nodes (default "Standard_DS2_v2")
+  -l, --location centralus                        Azure location to deploy to, e.g. centralus (required)
+      --network-plugin string                     Network plugin to use for the cluster (default "azure")
+      --network-policy string                     Network policy to use for the cluster (default "azure")
+      --runtime string                            Container runtime to use
+      --ssh-key sshKey                            Public SSH key to install as an authorized key on cluster nodes
+  -s, --subscription string                       Azure subscription to deploy the cluster with
+  -u, --user string                               Username for SSH access to nodes (default "azureuser")
+
+Global Flags:
+      --state-dir string   Directory to store state information to
 ```
 
 When creating a cluster you can provide your own (public) ssh key or a key pair will be generated for you.

@@ -51,27 +51,29 @@ func Create(ctx context.Context, stateDir *string) *cobra.Command {
 		},
 	}
 	flags := cmd.Flags()
-	flags.StringVar(&opts.ACSEnginePath, "acs-engine-path", "acs-engine", "Set the path to use for acs-engine")
+	flags.StringVar(&opts.ACSEnginePath, "acs-engine-path", "acs-engine", "Location of acs-engine binary")
 
 	// TODO(@cpuguy83): Configure this through some default config in the state dir
 	// flags.StringVarP(&opts.ResourceGroup, "resource-group", "g", "testrig", "Set the resource group to deploy to. If the group doesn't exist, it will be created")
-	flags.StringVarP(&opts.Location, "location", "l", "", "Set the location to deploy to")
-	flags.StringVarP(&opts.SubscriptionID, "subscription", "s", "", "Set the subscription to use to deploy with")
+	flags.StringVarP(&opts.Location, "location", "l", "", "Azure location to deploy to, e.g. `centralus` (required)")
+	flags.StringVarP(&opts.SubscriptionID, "subscription", "s", "", "Azure subscription to deploy the cluster with")
 
 	p := m.Properties
-	flags.IntVar(&p.MasterProfile.Count, "linux-leader-count", p.MasterProfile.Count, "sets the number of nodes for the leader pool")
-	flags.StringVar(&p.MasterProfile.VMSize, "linux-leader-node-sku", p.MasterProfile.VMSize, "sets sku to use for agent nodes")
+	flags.IntVar(&p.MasterProfile.Count, "linux-leader-count", p.MasterProfile.Count, "Number of nodes for the Kubernetes leader pool")
+	flags.StringVar(&p.MasterProfile.VMSize, "linux-leader-node-sku", p.MasterProfile.VMSize, "VM SKU for leader nodes")
 
-	flags.IntVar(&p.AgentPoolProfiles[0].Count, "linux-agent-count", p.AgentPoolProfiles[0].Count, "sets the number of nodes for agent pools")
-	flags.StringVar(&p.AgentPoolProfiles[0].VMSize, "linux-agent-node-sku", p.AgentPoolProfiles[0].VMSize, "sets sku to use for agent nodes")
-	flags.StringVar(&p.AgentPoolProfiles[0].AvailabilityProfile, "linux-agent-availability-profile", p.AgentPoolProfiles[0].AvailabilityProfile, "set the availabiltiy profile for agent nodes")
+	flags.IntVar(&p.AgentPoolProfiles[0].Count, "linux-agent-count", p.AgentPoolProfiles[0].Count, "Number of nodes for the Kubernetes agent/worker pools")
+	flags.StringVar(&p.AgentPoolProfiles[0].VMSize, "linux-agent-node-sku", p.AgentPoolProfiles[0].VMSize, "VM SKU for agent nodes")
+	flags.StringVar(&p.AgentPoolProfiles[0].AvailabilityProfile, "linux-agent-availability-profile", p.AgentPoolProfiles[0].AvailabilityProfile, "Availabiltiy profile for agent nodes")
 
-	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.ContainerRuntime, "runtime", p.OrchestratorProfile.KubernetesConfig.ContainerRuntime, "sets the container runtime to use")
-	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.NetworkPlugin, "network-plugin", p.OrchestratorProfile.KubernetesConfig.NetworkPlugin, "set the network plugin to use for the cluster")
-	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.NetworkPolicy, "network-policy", p.OrchestratorProfile.KubernetesConfig.NetworkPolicy, "set the network policy to use for the cluster")
-	flags.StringVar(&p.OrchestratorProfile.OrchestratorRelease, "kubernetes-version", p.OrchestratorProfile.OrchestratorRelease, "set the kubernetes version to use")
-	flags.StringVarP(&p.LinuxProfile.AdminUsername, "user", "u", p.LinuxProfile.AdminUsername, "set the username to use for nodes")
-	flags.Var(&p.LinuxProfile.SSH, "ssh-key", "set public SSH key to install as authorized keys in cluster nodes")
+	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.ContainerRuntime, "runtime", p.OrchestratorProfile.KubernetesConfig.ContainerRuntime, "Container runtime to use")
+	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.NetworkPlugin, "network-plugin", p.OrchestratorProfile.KubernetesConfig.NetworkPlugin, "Network plugin to use for the cluster")
+	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.NetworkPolicy, "network-policy", p.OrchestratorProfile.KubernetesConfig.NetworkPolicy, "Network policy to use for the cluster")
+
+	flags.StringVar(&p.OrchestratorProfile.OrchestratorRelease, "kubernetes-version", p.OrchestratorProfile.OrchestratorRelease, "Specify the Kubernetes version")
+
+	flags.StringVarP(&p.LinuxProfile.AdminUsername, "user", "u", p.LinuxProfile.AdminUsername, "Username for SSH access to nodes")
+	flags.Var(&p.LinuxProfile.SSH, "ssh-key", "Public SSH key to install as an authorized key on cluster nodes")
 
 	return cmd
 }
