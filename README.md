@@ -30,8 +30,8 @@ Usage:
       --network-policy string                     set the network policy to use for the cluster (default "azure")
       --runtime string                            sets the container runtime to use
       --ssh-key sshKey                            set public SSH key to install as authorized keys in cluster nodes
-      -s, --subscription string                       Set the subscription to use to deploy with
-      -u, --user string                               set the username to use for nodes (default "azureuser")
+      -s, --subscription string                   Set the subscription to use to deploy with
+      -u, --user string                           set the username to use for nodes (default "azureuser")
 ```
 
 When creating a cluster you can provide your own (public) ssh key or a key pair will be generated for you.
@@ -79,6 +79,30 @@ Flags:
       --state-dir string   directory to store state information to
 ```
 
+### Install
+
+This project uses go modules, introduced in go1.11. While you can build prior versions of go, this is not tested against and will require fetching depdendencies.
+
+Using `go get`:
+
+```
+go get github.com/Azure/k8s-testrig
+```
+
+Build Locally:
+
+```
+make build
+make install
+```
+
+Using docker:
+
+```
+make docker-build
+make install
+```
+
 # Contributing
 
 This project welcomes contributions and suggestions.  Most contributions require you to agree to a
@@ -92,4 +116,3 @@ provided by the bot. You will only need to do this once across all repos using o
 This project has adopted the [Microsoft Open Source Code of Conduct](https://opensource.microsoft.com/codeofconduct/).
 For more information see the [Code of Conduct FAQ](https://opensource.microsoft.com/codeofconduct/faq/) or
 contact [opencode@microsoft.com](mailto:opencode@microsoft.com) with any additional questions or comments.
-
