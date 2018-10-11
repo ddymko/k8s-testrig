@@ -29,6 +29,7 @@ type masterProfile struct {
 	VMSize         string `json:"vmSize"`
 	OSDiskSizeGB   int    `json:"osDiskSizeGB"`
 	StorageProfile string `json:"storageProfile"`
+	DNSPrefix      string `json:"dnsPrefix"`
 }
 
 type agentPoolProfile struct {
@@ -43,7 +44,16 @@ type agentPoolProfile struct {
 }
 
 type linuxProfile struct {
-	AdminUsername string `json:"adminUsername"`
+	AdminUsername string    `json:"adminUsername"`
+	SSH           sshConfig `json:"ssh"`
+}
+
+type sshConfig struct {
+	PublicKeys []sshKey `json:"publicKeys"`
+}
+
+type sshKey struct {
+	KeyData string `json:"keyData"`
 }
 
 type apiModel struct {

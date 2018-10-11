@@ -9,7 +9,10 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"time"
 
+	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/resources"
+	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -33,6 +36,17 @@ func Create(ctx context.Context, stateDir *string) *cobra.Command {
 			opts.Model = m
 			opts.StateDir = *stateDir
 
+			if opts.SubscriptionID == "" {
+				home, err := homedir.Dir()
+				if err != nil {
+					return errors.Wrap(err, "error determining home dir while trying to infer subscription ID")
+				}
+				opts.SubscriptionID, err = getSubFromAzDir(filepath.Join(home, ".azure"))
+				if err != nil {
+					return errors.Wrap(err, "no subscription provided and could not determine from azure CLI dir")
+				}
+			}
+
 			return runCreate(ctx, args[0], opts, os.Stdin, cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
 	}
@@ -42,6 +56,8 @@ func Create(ctx context.Context, stateDir *string) *cobra.Command {
 	// TODO(@cpuguy83): Configure this through some default config in the state dir
 	// flags.StringVarP(&opts.ResourceGroup, "resource-group", "g", "testrig", "Set the resource group to deploy to. If the group doesn't exist, it will be created")
 	flags.StringVarP(&opts.Location, "location", "l", "", "Set the location to deploy to")
+	flags.StringVarP(&opts.SubscriptionID, "subscription", "s", "", "Set the subscription to use to deploy with")
+	flags.StringVarP(&opts.ResourceGroup, "resource-group", "g", "", "Set the resource group to deploy to")
 
 	p := m.Properties
 	flags.IntVar(&p.MasterProfile.Count, "linux-leader-count", p.MasterProfile.Count, "sets the number of nodes for the leader pool")
@@ -55,18 +71,37 @@ func Create(ctx context.Context, stateDir *string) *cobra.Command {
 	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.NetworkPlugin, "network-plugin", p.OrchestratorProfile.KubernetesConfig.NetworkPlugin, "set the network plugin to use for the cluster")
 	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.NetworkPolicy, "network-policy", p.OrchestratorProfile.KubernetesConfig.NetworkPolicy, "set the network policy to use for the cluster")
 	flags.StringVar(&p.OrchestratorProfile.OrchestratorRelease, "kubernetes-version", p.OrchestratorProfile.OrchestratorRelease, "set the kubernetes version to use")
+	flags.StringVarP(&p.LinuxProfile.AdminUsername, "user", "u", p.LinuxProfile.AdminUsername, "set the username to use for nodes")
+	flags.Var(&p.LinuxProfile.SSH, "ssh-key", "set public SSH key to install as authorized keys in cluster nodes")
 
 	return cmd
 }
 
 type createOpts struct {
-	StateDir      string
-	Model         *apiModel
-	ACSEnginePath string
-	Location      string
+	StateDir       string
+	Model          *apiModel
+	ACSEnginePath  string
+	Location       string
+	SubscriptionID string
+	ResourceGroup  string
 }
 
-func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, outW, errW io.Writer) error {
+func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, outW, errW io.Writer) (retErr error) {
+	var s state
+	dir := filepath.Join(opts.StateDir, name)
+
+	defer func() {
+		if retErr == nil {
+			return
+		}
+
+		s.Status = stateFailure
+		if s.FailureMessage == "" {
+			s.FailureMessage = retErr.Error()
+		}
+		writeState(dir, s)
+	}()
+
 	if opts.Location == "" {
 		return errors.New("Must specify a location")
 	}
@@ -79,15 +114,21 @@ func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, 
 	if err != nil {
 		return err
 	}
-	dnsName := name + "-" + random
 
-	s := state{
-		Status:        stateInitialized,
-		Location:      opts.Location,
-		ResourceGroup: dnsName,
+	dnsName := name + "-" + random
+	opts.Model.Properties.MasterProfile.DNSPrefix = dnsName
+
+	if opts.ResourceGroup == "" {
+		opts.ResourceGroup = dnsName
 	}
 
-	dir := filepath.Join(opts.StateDir, name)
+	s = state{
+		Status:        stateInitialized,
+		Location:      opts.Location,
+		ResourceGroup: opts.ResourceGroup,
+		CreatedAt:     time.Now(),
+	}
+
 	if _, err := os.Stat(dir); err == nil {
 		return errors.Errorf("cluster with name %q already exists", name)
 	}
@@ -96,9 +137,26 @@ func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, 
 		return errors.Wrapf(err, "error creating state dir %s", dir)
 	}
 
-	statePath := filepath.Join(dir, "state.json")
-	if err := writeState(statePath, s); err != nil {
+	if err := writeState(dir, s); err != nil {
 		return err
+	}
+
+	if len(opts.Model.Properties.LinuxProfile.SSH.PublicKeys) == 0 {
+		keyPath := filepath.Join(dir, "id_rsa")
+		f, err := os.OpenFile(keyPath, os.O_CREATE|os.O_TRUNC|os.O_WRONLY, 0600)
+		if err != nil {
+			return errors.Wrap(err, "could not create private SSH key file and no ssh keys were provided")
+		}
+		defer f.Close()
+		pubKey, err := createSSHKey(ctx, f)
+		if err != nil {
+			return errors.Wrap(err, "error creating SSH key and no SSH key was provided")
+		}
+		s.SSHIdentityFile = keyPath
+		if err := writeState(dir, s); err != nil {
+			return err
+		}
+		opts.Model.Properties.LinuxProfile.SSH.PublicKeys = append(opts.Model.Properties.LinuxProfile.SSH.PublicKeys, sshKey{KeyData: pubKey})
 	}
 
 	modelJSON, err := json.MarshalIndent(opts.Model, "", "\t")
@@ -111,36 +169,66 @@ func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, 
 	}
 
 	s.Status = stateCreating
-	if err := writeState(statePath, s); err != nil {
+	if err := writeState(dir, s); err != nil {
 		return err
 	}
-
-	cmd := exec.CommandContext(ctx, opts.ACSEnginePath, "deploy",
-		"--api-model", modelPath,
-		"--location", opts.Location,
-		"--resource-group", s.ResourceGroup,
+	cmd := exec.CommandContext(ctx, opts.ACSEnginePath, "generate",
 		"--output-directory", filepath.Join(dir, "_output"),
-		"--dns-prefix", dnsName,
+		"--api-model", modelPath,
 	)
 
 	buf := bytes.NewBuffer(nil)
-
-	// wire up i/o here because `acs-engine` might ask to login
-	// TODO(@cpuguy83): Support login from testrig instead of going through acs-engine
-	cmd.Stdin = in
-	cmd.Stdout = io.MultiWriter(outW, buf)
-	cmd.Stderr = io.MultiWriter(errW, buf)
+	cmd.Stdout = buf
+	cmd.Stderr = buf
 
 	if err := cmd.Run(); err != nil {
 		s.Status = stateFailure
 		s.FailureMessage = buf.String()
-		writeState(statePath, s)
+		writeState(dir, s)
 		return errors.Wrapf(err, "%s exited with error", filepath.Base(opts.ACSEnginePath))
 	}
 
+	auth, err := getAuthorizer()
+	if err != nil {
+		return err
+	}
+
+	gClient := resources.NewGroupsClient(opts.SubscriptionID)
+	if err != nil {
+		return errors.Wrap(err, "error creating resources client")
+	}
+
+	gClient.Authorizer = auth
+	if _, err := gClient.CreateOrUpdate(ctx, opts.ResourceGroup, resources.Group{Location: &opts.Location, Name: &dnsName}); err != nil {
+		return errors.Wrapf(err, "error creating resource group %q", dnsName)
+	}
+
+	template, params, err := readACSDeployment(dir)
+	if err != nil {
+		return err
+	}
+
+	dClient := resources.NewDeploymentsClient(opts.SubscriptionID)
+	dClient.Authorizer = auth
+	future, err := dClient.CreateOrUpdate(ctx, opts.ResourceGroup, dnsName, resources.Deployment{
+		Properties: &resources.DeploymentProperties{Template: &template, Parameters: &params, Mode: resources.Incremental},
+	})
+	if err != nil {
+		return errors.Wrap(err, "error creating deployment")
+	}
+
+	if err := future.WaitForCompletionRef(ctx, dClient.Client); err != nil {
+		return errors.Wrap(err, "error in deployment")
+	}
+	deployment, err := future.Result(dClient)
+	if err != nil {
+		return errors.Wrap(err, "error getting deployment result")
+	}
+
+	s.DeploymentName = *deployment.Name
 	s.Status = stateReady
 	s.DNSPrefix = dnsName
-	if err := writeState(statePath, s); err != nil {
+	if err := writeState(dir, s); err != nil {
 		return errors.Wrap(err, "create succeeded but received error while writing state")
 	}
 

@@ -3,7 +3,11 @@ package commands
 import (
 	"encoding/json"
 	"io/ioutil"
+	"os"
 	"path/filepath"
+	"time"
+
+	"github.com/cpuguy83/strongerrors"
 
 	"github.com/pkg/errors"
 )
@@ -15,17 +19,22 @@ var (
 	stateCreating    status = "creating"
 	stateReady       status = "ready"
 	stateFailure     status = "failed"
+	stateRemoving    status = "removing"
 )
 
 type state struct {
-	Location       string
-	ResourceGroup  string
-	DNSPrefix      string
-	Status         status
-	FailureMessage string
+	Location        string
+	ResourceGroup   string
+	DNSPrefix       string
+	Status          status
+	FailureMessage  string
+	SSHIdentityFile string
+	DeploymentName  string
+	CreatedAt       time.Time
 }
 
-func writeState(filePath string, s state) error {
+func writeState(dir string, s state) error {
+	filePath := filepath.Join(dir, "state.json")
 	stateJSON, err := json.MarshalIndent(s, "", "\t")
 	if err != nil {
 		return errors.Wrap(err, "error marshaling state")
@@ -36,6 +45,9 @@ func writeState(filePath string, s state) error {
 func readState(dir string) (state, error) {
 	data, err := ioutil.ReadFile(filepath.Join(dir, "state.json"))
 	if err != nil {
+		if os.IsNotExist(err) {
+			return state{}, strongerrors.NotFound(err)
+		}
 		return state{}, errors.Wrap(err, "error reading state file")
 	}
 

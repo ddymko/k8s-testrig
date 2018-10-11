@@ -45,7 +45,7 @@ func main() {
 	}
 
 	flags := cmd.PersistentFlags()
-	flags.StringVar(&stateDir, "state-dir", stateDir, "directory to store state information to")
+	flags.StringVar(&stateDir, "state-dir", stateDir, "Directory to store state information to")
 
 	cmd.AddCommand(
 		commands.Create(ctx, &stateDir),

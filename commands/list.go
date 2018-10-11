@@ -62,6 +62,9 @@ func runList(ctx context.Context, stateDir string, outW, errW io.Writer) error {
 		if !e.IsDir() {
 			continue
 		}
+		if strings.HasSuffix(e.Name(), ".removing") {
+			continue
+		}
 
 		dir := filepath.Join(stateDir, e.Name())
 

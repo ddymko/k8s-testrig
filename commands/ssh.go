@@ -7,6 +7,7 @@ import (
 	"os/exec"
 	"path/filepath"
 
+	"github.com/cpuguy83/strongerrors"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -43,15 +44,28 @@ func runSSH(ctx context.Context, name string, stateDir string, sshArgs []string,
 	}
 
 	dir := filepath.Join(stateDir, name)
-
-	args := []string{"-i", filepath.Join(dir, "_output", "azureuser_rsa")}
-	if len(sshArgs) > 0 {
-		args = append(args, sshArgs...)
-	}
-
 	s, err := readState(dir)
 	if err != nil {
+		if strongerrors.IsNotFound(err) {
+			return clusterNotFound(name)
+		}
 		return err
+	}
+
+	identifyFile := s.SSHIdentityFile
+	if identifyFile == "" {
+		maybe := filepath.Join(dir, "_output", "azureuser_rsa")
+		if _, err := os.Stat(maybe); err == nil {
+			identifyFile = maybe
+		}
+	}
+
+	var args []string
+	if len(identifyFile) > 0 {
+		args = []string{"-i", identifyFile}
+	}
+	if len(sshArgs) > 0 {
+		args = append(args, sshArgs...)
 	}
 
 	user := "azureuser"
