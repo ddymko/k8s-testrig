@@ -20,7 +20,7 @@ func main() {
 
 	cmd := &cobra.Command{
 		Use:           filepath.Base(os.Args[0]),
-		Short:         "Quickly create and manage test Kubernetes clusters on Azure for testing purposes",
+		Short:         "Quickly create and manage test Kubernetes clusters on Azure",
 		SilenceUsage:  true,
 		SilenceErrors: true,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
