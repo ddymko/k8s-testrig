@@ -1,4 +1,4 @@
-PREFIX ?= "/usr/local/bin"
+PREFIX ?= /usr/local/bin
 GOOS ?= $(shell go env | grep GOOS | awk -F'=' '{ print $$2 }')
 GOPATH ?= $(shell go env | grep GOPATH | awk -F '=' '{ print $$2 }')
 GOVERSION=1.11
@@ -7,13 +7,18 @@ GOVERSION=1.11
 # The docker `--mount` flag ensures that it won't be created, but we also don't want to error out if it is missing
 GOMODCACHE_MOUNT := $(shell [ -d $(GOPATH)/pkg/mod ] && echo \--mount type=bind,source=$(GOPATH)/pkg/mod,target=/go/pkg/mod)
 
+all: build install
+
+clean:
+	rm bin/*
+
 .PHONY: build
 build: ## Build binary
-	go build
+	go build -o bin/testrig
 
 .PHONY: install
-install: build ## Install binary
-	cp ./testrig $(PREFIX)/testrig
+install: ## Install binary
+	cp bin/testrig $(PREFIX)/testrig
 
 .PHONY: docker-build
 docker-build: ## Build binary using docker
