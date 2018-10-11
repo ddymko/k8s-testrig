@@ -31,6 +31,27 @@ Usage:
       --runtime string                            sets the containe runtime to use
 ```
 
+
+#### Authentication
+
+`testrig` attempts to setup authentcation in the following order:
+1. Read service principal from the `AZURE_AUTH_LOCATION`
+2. Receive a bearer token through azure-cli
+
+If method `1` fails (e.g. if the value is unset), then method 2 is attempted.
+
+To make a service principal suitable for `1`, run:
+
+```
+az ad sp create-for-rbac --role="Contributor" --scopes="/subscriptions/${SUBSCRIPTION_ID}/resourceGroups/${RESOURCE_GROUP_NAME}"
+```
+
+The output of this should be saved to a file and the file path passed into `testrig` as an environment variable as `AZURE_AUTH_LOCATION`.
+
+For method `2`, you must make sure the azure-cli is logged in: `az login`.
+
+Commands will use whatever subscription you are logged in with, or you can pass in a custom subscription.
+
 #### Management commands
 
 ```
