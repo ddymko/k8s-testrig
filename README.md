@@ -29,8 +29,12 @@ Usage:
       --network-plugin string                     set the network plugin to use for the cluster (default "azure")
       --network-policy string                     set the network policy to use for the cluster (default "azure")
       --runtime string                            sets the containe runtime to use
+      --ssh-key sshKey                            set public SSH key to install as authorized keys in cluster nodes
+      -s, --subscription string                       Set the subscription to use to deploy with
+      -u, --user string                               set the username to use for nodes (default "azureuser")
 ```
 
+When creating a cluster you can provide your own (public) ssh key or a key pair will be generated for you.
 
 #### Authentication
 
