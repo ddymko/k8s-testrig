@@ -24,11 +24,6 @@ func SSH(ctx context.Context, stateDir *string) *cobra.Command {
 			var sshArgs []string
 			if len(args) > 1 {
 				sshArgs = args[1:]
-				for _, arg := range args {
-					if arg == "-i" {
-						return errors.New("must not provide `-i` flag to ssh args")
-					}
-				}
 			}
 			return runSSH(ctx, name, *stateDir, sshArgs, os.Stdin, cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
@@ -62,6 +57,11 @@ func runSSH(ctx context.Context, name string, stateDir string, sshArgs []string,
 
 	var args []string
 	if len(identifyFile) > 0 {
+		for _, arg := range sshArgs {
+			if arg == "-i" {
+				return errors.New("must not provide `-i` flag to ssh args when using a generated ssh key")
+			}
+		}
 		args = []string{"-i", identifyFile}
 	}
 	if len(sshArgs) > 0 {
