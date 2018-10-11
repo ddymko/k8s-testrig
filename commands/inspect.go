@@ -4,8 +4,10 @@ import (
 	"context"
 	"encoding/json"
 	"io"
+	"os"
 	"path/filepath"
 
+	"github.com/cpuguy83/strongerrors"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -33,6 +35,10 @@ func runInspect(ctx context.Context, stateDir, name string, outW, errW io.Writer
 	dir := filepath.Join(stateDir, name)
 	var errs []error
 	var inspect inspectItem
+
+	if _, err := os.Stat(dir); os.IsNotExist(err) {
+		return strongerrors.NotFound(errors.New("no such cluster"))
+	}
 
 	model, err := readAPIModel(dir)
 	if err != nil {
