@@ -57,7 +57,6 @@ func Create(ctx context.Context, stateDir *string) *cobra.Command {
 	// flags.StringVarP(&opts.ResourceGroup, "resource-group", "g", "testrig", "Set the resource group to deploy to. If the group doesn't exist, it will be created")
 	flags.StringVarP(&opts.Location, "location", "l", "", "Set the location to deploy to")
 	flags.StringVarP(&opts.SubscriptionID, "subscription", "s", "", "Set the subscription to use to deploy with")
-	flags.StringVarP(&opts.ResourceGroup, "resource-group", "g", "", "Set the resource group to deploy to")
 
 	p := m.Properties
 	flags.IntVar(&p.MasterProfile.Count, "linux-leader-count", p.MasterProfile.Count, "sets the number of nodes for the leader pool")
