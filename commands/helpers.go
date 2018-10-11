@@ -82,18 +82,16 @@ func (s *sshConfig) Type() string {
 }
 
 func createSSHKey(ctx context.Context, keyW io.Writer) (string, error) {
-	privateKey, err := rsa.GenerateKey(crand.Reader, 1024)
+	privateKey, err := rsa.GenerateKey(crand.Reader, 2048)
 	if err != nil {
 		return "", errors.Wrap(err, "error generating encrytption key")
 	}
 
-	// generate and write private key as PEM
 	privateKeyPEM := &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)}
 	if err := pem.Encode(keyW, privateKeyPEM); err != nil {
 		return "", errors.Wrap(err, "error encoding private key")
 	}
 
-	// generate and write public key
 	pub, err := ssh.NewPublicKey(&privateKey.PublicKey)
 	if err != nil {
 		return "", errors.Wrap(err, "error creating ssh public key")
