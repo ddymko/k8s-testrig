@@ -7,7 +7,6 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/cpuguy83/strongerrors"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
@@ -37,7 +36,7 @@ func runInspect(ctx context.Context, stateDir, name string, outW, errW io.Writer
 	var inspect inspectItem
 
 	if _, err := os.Stat(dir); os.IsNotExist(err) {
-		return strongerrors.NotFound(errors.New("no such cluster"))
+		return clusterNotFound(name)
 	}
 
 	model, err := readAPIModel(dir)
