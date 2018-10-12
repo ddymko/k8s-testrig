@@ -4,18 +4,20 @@ import (
 	"context"
 	"io"
 	"path/filepath"
+	"strings"
 
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
 // KubeConfig creates a a command to get the kubeconfig for a cluster
-func KubeConfig(ctx context.Context, stateDir *string) *cobra.Command {
+func KubeConfig(ctx context.Context, stateDir string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "kubeconfig",
 		Short: "Get the path to the kubeconfig file for the specified cluster",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runKubeConfig(ctx, args[0], *stateDir, cmd.OutOrStdout())
+			return runKubeConfig(ctx, args[0], stateDir, cmd.OutOrStdout())
 		},
 	}
 	return cmd
@@ -26,6 +28,9 @@ func runKubeConfig(ctx context.Context, name string, stateDir string, outW io.Wr
 	s, err := readState(dir)
 	if err != nil {
 		return err
+	}
+	if s.Status != stateReady {
+		return errors.Errorf("cluster is not read, kubeconfig is not available, current state: %s", strings.Title(string(s.Status)))
 	}
 	io.WriteString(outW, filepath.Join(dir, "_output", "kubeconfig", "kubeconfig."+s.Location+".json"))
 	return nil

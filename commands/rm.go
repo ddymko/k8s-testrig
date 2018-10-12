@@ -16,7 +16,7 @@ import (
 
 // Remove creates a command to remove a cluster
 // Note that this will remove the entire resource group!
-func Remove(ctx context.Context, stateDir *string) *cobra.Command {
+func Remove(ctx context.Context, stateDir string, cfg *UserConfig) *cobra.Command {
 	var (
 		force          bool
 		subscriptionID string
@@ -28,16 +28,19 @@ func Remove(ctx context.Context, stateDir *string) *cobra.Command {
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if subscriptionID == "" {
-				home, err := homedir.Dir()
-				if err != nil {
-					return errors.Wrap(err, "error determining home dir while trying to infer subscription ID")
-				}
-				subscriptionID, err = getSubFromAzDir(filepath.Join(home, ".azure"))
-				if err != nil {
-					return errors.Wrap(err, "no subscription provided and could not determine from azure CLI dir")
+				subscriptionID = cfg.Subscription
+				if subscriptionID == "" {
+					home, err := homedir.Dir()
+					if err != nil {
+						return errors.Wrap(err, "error determining home dir while trying to infer subscription ID")
+					}
+					subscriptionID, err = getSubFromAzDir(filepath.Join(home, ".azure"))
+					if err != nil {
+						return errors.Wrap(err, "no subscription provided and could not determine from azure CLI dir")
+					}
 				}
 			}
-			if err := runRemove(ctx, args[0], *stateDir, subscriptionID, force); err != nil {
+			if err := runRemove(ctx, args[0], stateDir, subscriptionID, force); err != nil {
 				if !force {
 					if !strongerrors.IsNotFound(err) {
 						io.WriteString(cmd.OutOrStderr(), "Error while attempting remove.\nYou can verify the state details and try again, or use `--force` to remove all local state\n")

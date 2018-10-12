@@ -1,6 +1,9 @@
 package commands
 
 import (
+	"io/ioutil"
+
+	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
 )
 
@@ -108,4 +111,41 @@ func defaultModel() *apiModel {
 			},
 		},
 	}
+}
+
+func overrideModelDefaults(m *apiModel, cfg *UserConfig) error {
+	if cfg == nil {
+		return nil
+	}
+
+	if cfg.Profile.Leader.Linux.Count != nil {
+		m.Properties.MasterProfile.Count = *cfg.Profile.Leader.Linux.Count
+	}
+	if cfg.Profile.Leader.Linux.SKU != "" {
+		m.Properties.MasterProfile.VMSize = cfg.Profile.Leader.Linux.SKU
+	}
+
+	if cfg.Profile.Agent.Linux.Count != nil {
+		m.Properties.AgentPoolProfiles[0].Count = *cfg.Profile.Agent.Linux.Count
+	}
+	if cfg.Profile.Agent.Linux.SKU != "" {
+		m.Properties.AgentPoolProfiles[0].VMSize = cfg.Profile.Agent.Linux.SKU
+	}
+
+	if cfg.Profile.Auth.Linux.User != "" {
+		m.Properties.LinuxProfile.AdminUsername = cfg.Profile.Auth.Linux.User
+	}
+	if cfg.Profile.Auth.Linux.PublicKeyFile != "" {
+		keyData, err := ioutil.ReadFile(cfg.Profile.Auth.Linux.PublicKeyFile)
+		if err != nil {
+			return errors.Wrap(err, "error reading user supplied public key file")
+		}
+		m.Properties.LinuxProfile.SSH.PublicKeys = append(m.Properties.LinuxProfile.SSH.PublicKeys, sshKey{KeyData: string(keyData)})
+	}
+
+	if cfg.Profile.KubernetesVersion != "" {
+		m.Properties.OrchestratorProfile.OrchestratorRelease = cfg.Profile.KubernetesVersion
+	}
+
+	return nil
 }

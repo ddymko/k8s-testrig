@@ -12,13 +12,13 @@ import (
 )
 
 // Inspect runs the command to inspect a cluster
-func Inspect(ctx context.Context, stateDir *string) *cobra.Command {
+func Inspect(ctx context.Context, stateDir string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "inspect",
 		Short: "Get details about an existing cluster",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runInspect(ctx, *stateDir, args[0], cmd.OutOrStdout(), cmd.OutOrStderr())
+			return runInspect(ctx, stateDir, args[0], cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
 	}
 

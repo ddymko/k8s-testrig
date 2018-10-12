@@ -16,13 +16,13 @@ import (
 
 // List returns a command to list the existing clusters.
 // Note that this lists from the local state, which may differ from state in Azure.
-func List(ctx context.Context, stateDir *string) *cobra.Command {
+func List(ctx context.Context, stateDir string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "ls",
 		Short: "List available clusters",
 		Args:  cobra.NoArgs,
 		RunE: func(cmd *cobra.Command, args []string) error {
-			return runList(ctx, *stateDir, cmd.OutOrStdout(), cmd.OutOrStderr())
+			return runList(ctx, stateDir, cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
 	}
 

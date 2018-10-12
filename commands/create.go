@@ -18,8 +18,9 @@ import (
 )
 
 // Create creates the `create` subcommand.
-func Create(ctx context.Context, stateDir *string) *cobra.Command {
+func Create(ctx context.Context, stateDir string, cfg *UserConfig) *cobra.Command {
 	m := defaultModel()
+	configErr := overrideModelDefaults(m, cfg)
 	var opts createOpts
 
 	cmd := &cobra.Command{
@@ -27,24 +28,32 @@ func Create(ctx context.Context, stateDir *string) *cobra.Command {
 		Short: "Create a new kubernetes cluster on Azure",
 		Args:  cobra.ExactArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
+			if configErr != nil {
+				return configErr
+			}
 			if _, err := os.Stat(opts.ACSEnginePath); err != nil && os.IsNotExist(err) {
 				var err2 error
 				if opts.ACSEnginePath, err2 = exec.LookPath(opts.ACSEnginePath); err2 != nil {
 					return errors.New("could not find acs-engine binary")
 				}
 			}
-			opts.Model = m
-			opts.StateDir = *stateDir
 
 			if opts.SubscriptionID == "" {
-				home, err := homedir.Dir()
-				if err != nil {
-					return errors.Wrap(err, "error determining home dir while trying to infer subscription ID")
+				opts.SubscriptionID = cfg.Subscription
+				if opts.SubscriptionID == "" {
+					home, err := homedir.Dir()
+					if err != nil {
+						return errors.Wrap(err, "error determining home dir while trying to infer subscription ID")
+					}
+					opts.SubscriptionID, err = getSubFromAzDir(filepath.Join(home, ".azure"))
+					if err != nil {
+						return errors.Wrap(err, "no subscription provided and could not determine from azure CLI dir")
+					}
 				}
-				opts.SubscriptionID, err = getSubFromAzDir(filepath.Join(home, ".azure"))
-				if err != nil {
-					return errors.Wrap(err, "no subscription provided and could not determine from azure CLI dir")
-				}
+			}
+
+			if opts.Location == "" {
+				opts.Location = cfg.Location
 			}
 
 			return runCreate(ctx, args[0], opts, os.Stdin, cmd.OutOrStdout(), cmd.OutOrStderr())

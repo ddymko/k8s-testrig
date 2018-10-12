@@ -61,7 +61,7 @@ func getAuthorizer() (autorest.Authorizer, error) {
 
 	authorizer, err := auth.NewAuthorizerFromCLI()
 	if err != nil {
-		return nil, errors.New("could not get authorizer from azure CLI or environment")
+		return nil, errors.Wrap(err, "could not get authorizer from azure CLI or environment")
 	}
 	return authorizer, nil
 }

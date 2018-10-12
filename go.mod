@@ -3,6 +3,7 @@ module github.com/cpuguy83/testrig
 require (
 	github.com/Azure/azure-sdk-for-go v21.1.0+incompatible
 	github.com/Azure/go-autorest v11.1.0+incompatible
+	github.com/BurntSushi/toml v0.3.1
 	github.com/cpuguy83/strongerrors v0.2.1
 	github.com/davecgh/go-spew v1.1.1 // indirect
 	github.com/dgrijalva/jwt-go v3.2.0+incompatible // indirect

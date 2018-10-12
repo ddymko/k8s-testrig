@@ -83,6 +83,55 @@ Flags:
       --state-dir string   directory to store state information to
 ```
 
+#### User supplied defaults
+
+In addition to overriding defaults via flags, users can also supply a default config file.
+By default, `testrig` will look in `~/.testrig/config.toml` (or equiv home dir on Windows), but can also be supplied as a flag: `--config`
+
+The config should be in toml format, with the following struct definition:
+
+```go
+type UserConfig struct {
+	Subscription string
+	Location     string
+
+	Profile struct {
+		KubernetesVersion string
+		Leader            struct {
+			Linux struct {
+				SKU   string
+				Count *int
+			}
+		}
+		Agent struct {
+			Linux struct {
+				SKU   string
+				Count *int
+			}
+		}
+		Auth struct {
+			Linux struct {
+				User          string
+				PublicKeyFile string
+			}
+		}
+	}
+}
+```
+
+Example Config:
+
+```toml
+Location = "centralus"
+
+[profile]
+  KubernetesVersion = "1.11"
+			[profile.leader.linux]
+				count = 1
+```
+
+Tabs or spaces, capitalization, doesn't matter.
+
 ### Install
 
 This project uses go modules, introduced in go1.11. While you can build prior versions of go, this is not tested against and will require fetching depdendencies.

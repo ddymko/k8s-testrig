@@ -2,6 +2,8 @@ github.com/Azure/azure-sdk-for-go v21.1.0+incompatible h1:43w4ZSx8u8wh5tgs1P+hO5
 github.com/Azure/azure-sdk-for-go v21.1.0+incompatible/go.mod h1:9XXNKU+eRnpl9moKnB4QOLf1HestfXbmab5FXxiDBjc=
 github.com/Azure/go-autorest v11.1.0+incompatible h1:9DfMsQdUMEtg1jKRTjtkNZsvOuZXJOMl4dN1kiQwAc8=
 github.com/Azure/go-autorest v11.1.0+incompatible/go.mod h1:r+4oMnoxhatjLLJ6zxSWATqVooLgysK6ZNox3g/xq24=
+github.com/BurntSushi/toml v0.3.1 h1:WXkYYl6Yr3qBf1K79EBnL4mak0OimBfB0XUf9Vl28OQ=
+github.com/BurntSushi/toml v0.3.1/go.mod h1:xHWCNGjB5oqiDr8zfno3MHue2Ht5sIBksp03qcyfWMU=
 github.com/cpuguy83/strongerrors v0.2.1 h1:7v4CHm5bpchaSFnjeEze8ZFzyuLD1rpZ0U2gvo4deac=
 github.com/cpuguy83/strongerrors v0.2.1/go.mod h1:vj9tvEnipU/FZ46djB2peLpRfogtTIzaWLFOWJlzQGM=
 github.com/davecgh/go-spew v1.1.1 h1:vj9j/u1bqnvCEfJOwUhtlOARqs3+rkHYY13jYWTU97c=

@@ -13,7 +13,7 @@ import (
 )
 
 // SSH creates the command to ssh into the cluster
-func SSH(ctx context.Context, stateDir *string) *cobra.Command {
+func SSH(ctx context.Context, stateDir string) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:     "ssh",
 		Example: "ssh <name> -- <ssh args>",
@@ -25,7 +25,7 @@ func SSH(ctx context.Context, stateDir *string) *cobra.Command {
 			if len(args) > 1 {
 				sshArgs = args[1:]
 			}
-			return runSSH(ctx, name, *stateDir, sshArgs, os.Stdin, cmd.OutOrStdout(), cmd.OutOrStderr())
+			return runSSH(ctx, name, stateDir, sshArgs, os.Stdin, cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
 	}
 
