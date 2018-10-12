@@ -91,6 +91,12 @@ func runRemove(ctx context.Context, name, stateDir, subscriptionID string, force
 		return errors.Errorf("cannot remove while status is in state %q", strings.Title(string(s.Status)))
 	}
 	s.Status = stateRemoving
+	defer func() {
+		if retErr != nil {
+			s.Status = stateDead
+			writeState(dir, s)
+		}
+	}()
 	writeState(dir, s)
 
 	if s.ResourceGroup == "" {
@@ -107,10 +113,16 @@ func runRemove(ctx context.Context, name, stateDir, subscriptionID string, force
 
 	future, err := gClient.Delete(ctx, s.ResourceGroup)
 	if err != nil {
-		return errors.Wrapf(err, "error starting resource group deletion for %q", s.ResourceGroup)
-	}
-	if err := future.WaitForCompletionRef(ctx, gClient.Client); err != nil {
-		return errors.Wrapf(err, "error waiting for resource group deletion to finish for %q", s.ResourceGroup)
+		if isAzureNotFound(err) {
+			err = nil
+		}
+		if err != nil {
+			return errors.Wrapf(err, "error starting resource group deletion for %q", s.ResourceGroup)
+		}
+	} else {
+		if err := future.WaitForCompletionRef(ctx, gClient.Client); err != nil {
+			return errors.Wrapf(err, "error waiting for resource group deletion to finish for %q", s.ResourceGroup)
+		}
 	}
 	return nil
 }

@@ -12,10 +12,13 @@ import (
 	"io"
 	"io/ioutil"
 	"math/rand"
+	"net/http"
 	"path/filepath"
 	"strings"
 	"time"
 
+	"github.com/Azure/go-autorest/autorest"
+	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/cpuguy83/strongerrors"
 	"github.com/pkg/errors"
 	"golang.org/x/crypto/ssh"
@@ -124,4 +127,25 @@ func readACSDeployment(dir string) (interface{}, interface{}, error) {
 
 func clusterNotFound(name string) error {
 	return strongerrors.NotFound(errors.Errorf("no such cluster: %q", name))
+}
+
+func isAzureNotFound(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	switch e := err.(type) {
+	case *azure.RequestError:
+		if e.StatusCode != 0 {
+			return e.StatusCode == http.StatusNotFound
+		}
+		return isAzureNotFound(e.Original)
+	case autorest.DetailedError:
+		if e.StatusCode != 0 {
+			return e.StatusCode == http.StatusNotFound
+		}
+		return isAzureNotFound(e.Original)
+	}
+
+	return false
 }

@@ -20,6 +20,7 @@ var (
 	stateReady       status = "ready"
 	stateFailure     status = "failed"
 	stateRemoving    status = "removing"
+	stateDead        status = "dead"
 )
 
 type state struct {
