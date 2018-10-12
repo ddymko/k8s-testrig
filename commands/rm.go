@@ -6,6 +6,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/resources"
 	"github.com/cpuguy83/strongerrors"
@@ -25,7 +26,7 @@ func Remove(ctx context.Context, stateDir string, cfg *UserConfig) *cobra.Comman
 	cmd := &cobra.Command{
 		Use:   "rm",
 		Short: "Remove a cluster",
-		Args:  cobra.ExactArgs(1),
+		Args:  cobra.MinimumNArgs(1),
 		RunE: func(cmd *cobra.Command, args []string) error {
 			if subscriptionID == "" {
 				subscriptionID = cfg.Subscription
@@ -40,7 +41,7 @@ func Remove(ctx context.Context, stateDir string, cfg *UserConfig) *cobra.Comman
 					}
 				}
 			}
-			if err := runRemove(ctx, args[0], stateDir, subscriptionID, force); err != nil {
+			if err := runRemove(ctx, args, stateDir, subscriptionID, force, cmd.OutOrStdout()); err != nil {
 				if !force {
 					if !strongerrors.IsNotFound(err) {
 						io.WriteString(cmd.OutOrStderr(), "Error while attempting remove.\nYou can verify the state details and try again, or use `--force` to remove all local state\n")
@@ -57,7 +58,36 @@ func Remove(ctx context.Context, stateDir string, cfg *UserConfig) *cobra.Comman
 	return cmd
 }
 
-func runRemove(ctx context.Context, name, stateDir, subscriptionID string, force bool) (retErr error) {
+func runRemove(ctx context.Context, names []string, stateDir, subscriptionID string, force bool, out io.Writer) error {
+	auth, err := getAuthorizer()
+	if err != nil {
+		return err
+	}
+
+	gClient := resources.NewGroupsClient(subscriptionID)
+	gClient.Authorizer = auth
+
+	errors := make(chan error, len(names))
+	var wg sync.WaitGroup
+	wg.Add(len(names))
+
+	for _, name := range names {
+		go func(name string) {
+			errors <- removeCluster(ctx, name, stateDir, gClient, force)
+			wg.Done()
+		}(name)
+	}
+	wg.Wait()
+	close(errors)
+	for err := range errors {
+		if err != nil {
+			io.WriteString(out, err.Error()+"\n")
+		}
+	}
+	return nil
+}
+
+func removeCluster(ctx context.Context, name, stateDir string, client resources.GroupsClient, force bool) (retErr error) {
 	dir := filepath.Join(stateDir, name)
 
 	defer func() {
@@ -103,15 +133,7 @@ func runRemove(ctx context.Context, name, stateDir, subscriptionID string, force
 		return errors.New("missing resource group in state object, cannot remove")
 	}
 
-	auth, err := getAuthorizer()
-	if err != nil {
-		return err
-	}
-
-	gClient := resources.NewGroupsClient(subscriptionID)
-	gClient.Authorizer = auth
-
-	future, err := gClient.Delete(ctx, s.ResourceGroup)
+	future, err := client.Delete(ctx, s.ResourceGroup)
 	if err != nil {
 		if isAzureNotFound(err) {
 			err = nil
@@ -120,9 +142,10 @@ func runRemove(ctx context.Context, name, stateDir, subscriptionID string, force
 			return errors.Wrapf(err, "error starting resource group deletion for %q", s.ResourceGroup)
 		}
 	} else {
-		if err := future.WaitForCompletionRef(ctx, gClient.Client); err != nil {
+		if err := future.WaitForCompletionRef(ctx, client.Client); err != nil {
 			return errors.Wrapf(err, "error waiting for resource group deletion to finish for %q", s.ResourceGroup)
 		}
 	}
+
 	return nil
 }

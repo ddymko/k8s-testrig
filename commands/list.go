@@ -25,7 +25,6 @@ func List(ctx context.Context, stateDir string) *cobra.Command {
 			return runList(ctx, stateDir, cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
 	}
-
 	return cmd
 }
 
