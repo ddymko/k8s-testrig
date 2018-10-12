@@ -12,6 +12,7 @@ type properties struct {
 	MasterProfile       *masterProfile       `json:"masterProfile"`
 	AgentPoolProfiles   []agentPoolProfile   `json:"agentPoolProfiles"`
 	LinuxProfile        *linuxProfile        `json:"linuxProfile"`
+	WindowsProfile      *windowsProfile      `json:"windowsProfile"`
 }
 
 type orchestratorProfile struct {
@@ -49,6 +50,11 @@ type agentPoolProfile struct {
 type linuxProfile struct {
 	AdminUsername string    `json:"adminUsername"`
 	SSH           sshConfig `json:"ssh"`
+}
+
+type windowsProfile struct {
+	AdminUsername string `json:"adminUsername"`
+	AdminPassword string `json:"adminPassword"`
 }
 
 type sshConfig struct {
@@ -96,7 +102,7 @@ func defaultModel() *apiModel {
 			},
 			AgentPoolProfiles: []agentPoolProfile{
 				agentPoolProfile{
-					Name:                         "agentpool1",
+					Name:                         "linuxpool1",
 					Count:                        3,
 					VMSize:                       "Standard_DS2_v2",
 					StorageProfile:               "ManagedDisks",
@@ -105,8 +111,20 @@ func defaultModel() *apiModel {
 					AcceleratedNetworkingEnabled: boolPtr(true),
 					OSType:                       "Linux",
 				},
+				agentPoolProfile{
+					Name:                "windowspool1",
+					Count:               0,
+					VMSize:              "Standard_DS2_v3",
+					StorageProfile:      "ManagedDisks",
+					OSDiskSizeGB:        200,
+					AvailabilityProfile: "VirtualMachineScaleSets",
+					OSType:              "Windows",
+				},
 			},
 			LinuxProfile: &linuxProfile{
+				AdminUsername: "azureuser",
+			},
+			WindowsProfile: &windowsProfile{
 				AdminUsername: "azureuser",
 			},
 		},
@@ -132,15 +150,33 @@ func overrideModelDefaults(m *apiModel, cfg *UserConfig) error {
 		m.Properties.AgentPoolProfiles[0].VMSize = cfg.Profile.Agent.Linux.SKU
 	}
 
+	if cfg.Profile.Agent.Windows.Count != nil {
+		m.Properties.AgentPoolProfiles[1].Count = *cfg.Profile.Agent.Windows.Count
+	}
+	if cfg.Profile.Agent.Windows.SKU != "" {
+		m.Properties.AgentPoolProfiles[1].VMSize = cfg.Profile.Agent.Windows.SKU
+	}
+
 	if cfg.Profile.Auth.Linux.User != "" {
 		m.Properties.LinuxProfile.AdminUsername = cfg.Profile.Auth.Linux.User
 	}
 	if cfg.Profile.Auth.Linux.PublicKeyFile != "" {
 		keyData, err := ioutil.ReadFile(cfg.Profile.Auth.Linux.PublicKeyFile)
 		if err != nil {
-			return errors.Wrap(err, "error reading user supplied public key file")
+			return errors.Wrap(err, "error reading user supplied linux public ssh key file")
 		}
 		m.Properties.LinuxProfile.SSH.PublicKeys = append(m.Properties.LinuxProfile.SSH.PublicKeys, sshKey{KeyData: string(keyData)})
+	}
+
+	if cfg.Profile.Auth.Windows.User != "" {
+		m.Properties.WindowsProfile.AdminUsername = cfg.Profile.Auth.Windows.User
+	}
+	if cfg.Profile.Auth.Windows.PasswordFile != "" {
+		pData, err := ioutil.ReadFile(cfg.Profile.Auth.Windows.PasswordFile)
+		if err != nil {
+			return errors.Wrap(err, "error reading user supplied windows admin password file")
+		}
+		m.Properties.WindowsProfile.AdminPassword = string(pData)
 	}
 
 	if cfg.Profile.KubernetesVersion != "" {

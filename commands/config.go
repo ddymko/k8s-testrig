@@ -22,18 +22,27 @@ type UserConfig struct {
 			}
 		}
 		Agent struct {
-			Linux struct {
-				SKU   string
-				Count *int
-			}
+			Linux   AgentNodeConfig
+			Windows AgentNodeConfig
 		}
 		Auth struct {
 			Linux struct {
 				User          string
 				PublicKeyFile string
 			}
+			Windows struct {
+				User         string
+				PasswordFile string
+			}
 		}
 	}
+}
+
+// AgentNodeConfig is used to configure an agent node pool.
+// It's used by UserConfig
+type AgentNodeConfig struct {
+	SKU   string
+	Count *int
 }
 
 // ReadUserConfig reads the config from the provided path

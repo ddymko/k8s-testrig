@@ -9,6 +9,7 @@ import (
 	"os"
 	"os/exec"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/Azure/azure-sdk-for-go/profiles/latest/resources/mgmt/resources"
@@ -55,6 +56,8 @@ func Create(ctx context.Context, stateDir string, cfg *UserConfig) *cobra.Comman
 			if opts.Location == "" {
 				opts.Location = cfg.Location
 			}
+			opts.StateDir = stateDir
+			opts.Model = m
 
 			return runCreate(ctx, args[0], opts, os.Stdin, cmd.OutOrStdout(), cmd.OutOrStderr())
 		},
@@ -64,16 +67,20 @@ func Create(ctx context.Context, stateDir string, cfg *UserConfig) *cobra.Comman
 	flags.StringVar(&opts.ACSEnginePath, "acs-engine-path", "acs-engine", "Location of acs-engine binary")
 
 	// TODO(@cpuguy83): Configure this through some default config in the state dir
-	flags.StringVarP(&opts.Location, "location", "l", "", "Azure location to deploy to, e.g. `centralus` (required)")
+	flags.StringVarP(&opts.Location, "location", "l", cfg.Location, "Azure location to deploy to, e.g. `centralus` (required)")
 	flags.StringVarP(&opts.SubscriptionID, "subscription", "s", "", "Azure subscription to deploy the cluster with")
 
 	p := m.Properties
 	flags.IntVar(&p.MasterProfile.Count, "linux-leader-count", p.MasterProfile.Count, "Number of nodes for the Kubernetes leader pool")
 	flags.StringVar(&p.MasterProfile.VMSize, "linux-leader-node-sku", p.MasterProfile.VMSize, "VM SKU for leader nodes")
 
-	flags.IntVar(&p.AgentPoolProfiles[0].Count, "linux-agent-count", p.AgentPoolProfiles[0].Count, "Number of nodes for the Kubernetes agent/worker pools")
-	flags.StringVar(&p.AgentPoolProfiles[0].VMSize, "linux-agent-node-sku", p.AgentPoolProfiles[0].VMSize, "VM SKU for agent nodes")
-	flags.StringVar(&p.AgentPoolProfiles[0].AvailabilityProfile, "linux-agent-availability-profile", p.AgentPoolProfiles[0].AvailabilityProfile, "Availabiltiy profile for agent nodes")
+	flags.IntVar(&p.AgentPoolProfiles[0].Count, "linux-agent-count", p.AgentPoolProfiles[0].Count, "Number of Linux nodes for the Kubernetes agent/worker pools")
+	flags.StringVar(&p.AgentPoolProfiles[0].VMSize, "linux-agent-node-sku", p.AgentPoolProfiles[0].VMSize, "VM SKU for Linux agent nodes")
+	flags.StringVar(&p.AgentPoolProfiles[0].AvailabilityProfile, "linux-agent-availability-profile", p.AgentPoolProfiles[0].AvailabilityProfile, "Availabiltiy profile for Linux agent nodes")
+
+	flags.IntVar(&p.AgentPoolProfiles[1].Count, "windows-agent-count", p.AgentPoolProfiles[1].Count, "Number of Windows nodes for the Kubernetes agent/worker pools")
+	flags.StringVar(&p.AgentPoolProfiles[1].VMSize, "windows-agent-node-sku", p.AgentPoolProfiles[1].VMSize, "VM SKU for Windows agent nodes")
+	flags.StringVar(&p.AgentPoolProfiles[1].AvailabilityProfile, "windows-agent-availability-profile", p.AgentPoolProfiles[1].AvailabilityProfile, "Availabiltiy profile for Windows agent nodes")
 
 	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.ContainerRuntime, "runtime", p.OrchestratorProfile.KubernetesConfig.ContainerRuntime, "Container runtime to use")
 	flags.StringVar(&p.OrchestratorProfile.KubernetesConfig.NetworkPlugin, "network-plugin", p.OrchestratorProfile.KubernetesConfig.NetworkPlugin, "Network plugin to use for the cluster")
@@ -97,6 +104,21 @@ type createOpts struct {
 }
 
 func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, outW, errW io.Writer) (retErr error) {
+	var deletePools []int
+	for i, p := range opts.Model.Properties.AgentPoolProfiles {
+		if p.Count == 0 {
+			deletePools = append(deletePools, i)
+		}
+	}
+
+	for n, i := range deletePools {
+		opts.Model.Properties.AgentPoolProfiles = append(opts.Model.Properties.AgentPoolProfiles[:i-n], opts.Model.Properties.AgentPoolProfiles[i-n+1:]...)
+	}
+
+	if len(opts.Model.Properties.AgentPoolProfiles) == 0 {
+		return errors.New("must have at least 1 agent node")
+	}
+
 	var s state
 	dir := filepath.Join(opts.StateDir, name)
 
@@ -158,7 +180,7 @@ func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, 
 			return errors.Wrap(err, "could not create private SSH key file and no ssh keys were provided")
 		}
 		defer f.Close()
-		pubKey, err := createSSHKey(ctx, f)
+		pubKey, err := createSSHKey(f)
 		if err != nil {
 			return errors.Wrap(err, "error creating SSH key and no SSH key was provided")
 		}
@@ -169,12 +191,29 @@ func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, 
 		opts.Model.Properties.LinuxProfile.SSH.PublicKeys = append(opts.Model.Properties.LinuxProfile.SSH.PublicKeys, sshKey{KeyData: pubKey})
 	}
 
+	for _, p := range opts.Model.Properties.AgentPoolProfiles {
+		if p.Count > 0 {
+			switch strings.ToLower(p.OSType) {
+			case "linux":
+				// ssh key is already generated since leader nodes are linux
+			case "windows":
+				if opts.Model.Properties.WindowsProfile.AdminPassword == "" {
+					opts.Model.Properties.WindowsProfile.AdminPassword, err = generatePassword()
+					if err != nil {
+						return errors.Wrap(err, "error generating random password for Windows admin user")
+					}
+				}
+			}
+		}
+	}
+
 	modelJSON, err := json.MarshalIndent(opts.Model, "", "\t")
 	if err != nil {
 		return errors.Wrap(err, "error marshalling api model")
 	}
 	modelPath := filepath.Join(dir, "apimodel.json")
-	if err := ioutil.WriteFile(modelPath, modelJSON, 0644); err != nil {
+	// This file may contain a password in it, so make sure it's not readable by anyone but the user.
+	if err := ioutil.WriteFile(modelPath, modelJSON, 0600); err != nil {
 		return errors.Wrap(err, "error writing API model to disk")
 	}
 
@@ -195,7 +234,7 @@ func runCreate(ctx context.Context, name string, opts createOpts, in io.Reader, 
 		s.Status = stateFailure
 		s.FailureMessage = buf.String()
 		writeState(dir, s)
-		return errors.Wrapf(err, "%s exited with error", filepath.Base(opts.ACSEnginePath))
+		return errors.Wrapf(err, "%s exited with error: %s", filepath.Base(opts.ACSEnginePath), s.FailureMessage)
 	}
 
 	auth, err := getAuthorizer()

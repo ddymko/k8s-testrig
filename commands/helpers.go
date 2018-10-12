@@ -1,7 +1,6 @@
 package commands
 
 import (
-	"context"
 	crand "crypto/rand"
 	"crypto/rsa"
 	"crypto/x509"
@@ -21,6 +20,7 @@ import (
 	"github.com/Azure/go-autorest/autorest/azure"
 	"github.com/cpuguy83/strongerrors"
 	"github.com/pkg/errors"
+	"github.com/sethvargo/go-password/password"
 	"golang.org/x/crypto/ssh"
 )
 
@@ -29,9 +29,9 @@ func boolPtr(b bool) *bool {
 }
 
 func generateRandom() (string, error) {
-	r := rand.New(rand.NewSource(time.Now().Unix()))
+	rand.Seed(time.Now().Unix())
 	buf := make([]byte, 8)
-	if _, err := r.Read(buf); err != nil {
+	if _, err := rand.Read(buf); err != nil {
 		return "", errors.Wrap(err, "error generating random data")
 	}
 	return hex.EncodeToString(buf), nil
@@ -84,7 +84,7 @@ func (s *sshConfig) Type() string {
 	return "sshKey"
 }
 
-func createSSHKey(ctx context.Context, keyW io.Writer) (string, error) {
+func createSSHKey(keyW io.Writer) (string, error) {
 	privateKey, err := rsa.GenerateKey(crand.Reader, 2048)
 	if err != nil {
 		return "", errors.Wrap(err, "error generating encrytption key")
@@ -101,6 +101,10 @@ func createSSHKey(ctx context.Context, keyW io.Writer) (string, error) {
 	}
 
 	return string(ssh.MarshalAuthorizedKey(pub)), nil
+}
+
+func generatePassword() (string, error) {
+	return password.Generate(64, 1, 1, false, true)
 }
 
 func readACSDeployment(dir string) (interface{}, interface{}, error) {

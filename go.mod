@@ -14,6 +14,7 @@ require (
 	github.com/mitchellh/go-homedir v1.0.0
 	github.com/pkg/errors v0.8.0
 	github.com/pmezard/go-difflib v1.0.0 // indirect
+	github.com/sethvargo/go-password v0.1.2
 	github.com/smartystreets/assertions v0.0.0-20180927180507-b2de0cb4f26d // indirect
 	github.com/smartystreets/goconvey v0.0.0-20180222194500-ef6db91d284a // indirect
 	github.com/spf13/cobra v0.0.3
