@@ -18,24 +18,28 @@ Usage:
   testrig create [flags]
 
 Flags:
-      --acs-engine-path string                    Location of acs-engine binary (default "acs-engine")
-  -h, --help                                      help for create
-      --kubernetes-version string                 Specify the Kubernetes version (default "1.10")
-      --linux-agent-availability-profile string   Availabiltiy profile for agent nodes (default "VirtualMachineScaleSets")
-      --linux-agent-count int                     Number of nodes for the Kubernetes agent/worker pools (default 3)
-      --linux-agent-node-sku string               VM SKU for agent nodes (default "Standard_DS2_v2")
-      --linux-leader-count int                    Number of nodes for the Kubernetes leader pool (default 3)
-      --linux-leader-node-sku string              VM SKU for leader nodes (default "Standard_DS2_v2")
-  -l, --location centralus                        Azure location to deploy to, e.g. centralus (required)
-      --network-plugin string                     Network plugin to use for the cluster (default "azure")
-      --network-policy string                     Network policy to use for the cluster (default "azure")
-      --runtime string                            Container runtime to use
-      --ssh-key sshKey                            Public SSH key to install as an authorized key on cluster nodes
-  -s, --subscription string                       Azure subscription to deploy the cluster with
-  -u, --user string                               Username for SSH access to nodes (default "azureuser")
+      --acs-engine-path string                      Location of acs-engine binary (default "acs-engine")
+  -h, --help                                        help for create
+      --kubernetes-version string                   Specify the Kubernetes version (default "1.10")
+      --linux-agent-availability-profile string     Availabiltiy profile for Linux agent nodes (default "VirtualMachineScaleSets")
+      --linux-agent-count int                       Number of Linux nodes for the Kubernetes agent/worker pools (default 3)
+      --linux-agent-node-sku string                 VM SKU for Linux agent nodes (default "Standard_DS2_v2")
+      --linux-leader-count int                      Number of nodes for the Kubernetes leader pool (default 3)
+      --linux-leader-node-sku string                VM SKU for leader nodes (default "Standard_DS2_v2")
+  -l, --location centralus                          Azure location to deploy to, e.g. centralus (required)
+      --network-plugin string                       Network plugin to use for the cluster (default "azure")
+      --network-policy string                       Network policy to use for the cluster (default "azure")
+      --runtime string                              Container runtime to use
+      --ssh-key sshKey                              Public SSH key to install as an authorized key on cluster nodes
+  -s, --subscription string                         Azure subscription to deploy the cluster with
+  -u, --user string                                 Username for SSH access to nodes (default "azureuser")
+      --windows-agent-availability-profile string   Availabiltiy profile for Windows agent nodes (default "VirtualMachineScaleSets")
+      --windows-agent-count int                     Number of Windows nodes for the Kubernetes agent/worker pools
+      --windows-agent-node-sku string               VM SKU for Windows agent nodes (default "Standard_DS2_v3")
 
 Global Flags:
-      --state-dir string   Directory to store state information to
+      --config string      Location of user config file (default "/Users/cpuguy83/.testrig/config.toml")
+      --state-dir string   Directory to store state information to (default "/Users/cpuguy83/.testrig")
 ```
 
 When creating a cluster you can provide your own (public) ssh key or a key pair will be generated for you.
@@ -91,6 +95,7 @@ By default, `testrig` will look in `~/.testrig/config.toml` (or equiv home dir o
 The config should be in toml format, with the following struct definition:
 
 ```go
+// UserConfig represents the user configuration read from a config file
 type UserConfig struct {
 	Subscription string
 	Location     string
@@ -104,18 +109,27 @@ type UserConfig struct {
 			}
 		}
 		Agent struct {
-			Linux struct {
-				SKU   string
-				Count *int
-			}
+			Linux   AgentNodeConfig
+			Windows AgentNodeConfig
 		}
 		Auth struct {
 			Linux struct {
 				User          string
 				PublicKeyFile string
 			}
+			Windows struct {
+				User         string
+				PasswordFile string
+			}
 		}
 	}
+}
+
+// AgentNodeConfig is used to configure an agent node pool.
+// It's used by UserConfig
+type AgentNodeConfig struct {
+	SKU   string
+	Count *int
 }
 ```
 
