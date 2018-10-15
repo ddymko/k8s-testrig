@@ -9,7 +9,7 @@ import (
 	"syscall"
 
 	"github.com/cpuguy83/strongerrors"
-	"github.com/cpuguy83/testrig/commands"
+	"github.com/Azure/k8s-testrig/commands"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
