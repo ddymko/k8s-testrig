@@ -8,8 +8,8 @@ import (
 	"path/filepath"
 	"syscall"
 
-	"github.com/cpuguy83/strongerrors"
 	"github.com/Azure/k8s-testrig/commands"
+	"github.com/cpuguy83/strongerrors"
 	homedir "github.com/mitchellh/go-homedir"
 	"github.com/pkg/errors"
 	"github.com/spf13/cobra"
